@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "data-clean-openenv"
+version = "1.0.0"
+description = "Real-world data cleaning environment for AI agents built on OpenEnv."
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "pandas",
+    "numpy",
+    "pydantic",
+    "python-multipart"
+]
