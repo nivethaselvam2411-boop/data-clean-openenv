@@ -1,0 +1,41 @@
+[[package]]
+name = "data-clean-openenv"
+version = "1.0.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "fastapi" },
+    { name = "uvicorn" },
+    { name = "pandas" },
+    { name = "numpy" },
+    { name = "pydantic" },
+    { name = "python-multipart" },
+    { name = "openenv" },
+]
+
+[[package]]
+name = "fastapi"
+version = "0.111.0"
+
+[[package]]
+name = "uvicorn"
+version = "0.29.0"
+
+[[package]]
+name = "pandas"
+version = "2.2.2"
+
+[[package]]
+name = "numpy"
+version = "1.26.4"
+
+[[package]]
+name = "pydantic"
+version = "2.7.1"
+
+[[package]]
+name = "python-multipart"
+version = "0.0.9"
+
+[[package]]
+name = "openenv"
+version = "0.1.13"
