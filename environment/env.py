@@ -124,8 +124,7 @@ class DataCleanEnvironment:
     # -----------------------------------------------------------------------
     # OpenEnv Core API
     # -----------------------------------------------------------------------
-
-    def reset(self) -> Observation:
+   def reset(self) -> Observation:
         """Reset environment to initial state, return first observation."""
         dirty, _ = self._config["generator"](seed=self.seed)
         self._df = dirty.copy()
@@ -134,6 +133,7 @@ class DataCleanEnvironment:
         self._done = False
         self._action_history = []
         self._current_reward = 0.0
+        print(f"START: Task {self.task_id} initialized with seed {self.seed}")
         return self._build_observation()
 
     def step(self, action: Action | Dict[str, Any]) -> Tuple[Observation, float, bool, Dict]:
@@ -148,9 +148,17 @@ class DataCleanEnvironment:
 
         # Accept dict or model
         if isinstance(action, dict):
+            action_type = action.get("action_type", "unknown") # Get name for printing
             action = self._parse_action(action)
+        else:
+            action_type = action.action_type
 
         self._step_num += 1
+        
+        # --- ADDED FOR CHECKLIST #5 ---
+        print(f"STEP {self._step_num}: Executing {action_type}")
+        # ------------------------------
+
         action_result = {"step": self._step_num, "action": action.model_dump(), "success": False, "message": ""}
 
         try:
@@ -158,6 +166,10 @@ class DataCleanEnvironment:
                 action_result["success"] = True
                 action_result["message"] = "Episode submitted for grading."
                 self._done = True
+                
+                # --- ADDED FOR CHECKLIST #5 ---
+                print(f"END: Task {self.task_id} completed at step {self._step_num}")
+                # ------------------------------
             else:
                 self._apply_action(action, action_result)
         except Exception as e:
@@ -178,6 +190,11 @@ class DataCleanEnvironment:
         # Force done if max steps reached
         if self._step_num >= self._max_steps:
             self._done = True
+            
+            # --- ADDED FOR CHECKLIST #5 ---
+            print(f"END: Task {self.task_id} reached max steps ({self._max_steps})")
+            # ------------------------------
+            
             reward_obj = Reward(
                 total=reward_obj.total,
                 breakdown=reward_obj.breakdown,
@@ -186,10 +203,14 @@ class DataCleanEnvironment:
             )
         elif reward_obj.done:
             self._done = True
+            # --- ADDED FOR CHECKLIST #5 ---
+            print(f"END: Task {self.task_id} succeeded early")
+            # ------------------------------
 
         obs = self._build_observation()
         return obs, reward_obj.total, self._done, reward_obj.info
 
+  
     def state(self) -> Dict[str, Any]:
         """Return full current state (for checkpointing/inspection)."""
         return {
