@@ -183,3 +183,10 @@ def validate():
         except Exception as e:
             results[tid] = {"status": "error", "error": str(e)}
     return {"validation": results, "all_passed": all(r["status"] == "ok" for r in results.values())}
+
+def main():
+    import uvicorn
+    uvicorn.run("server.app:app", host="0.0.0.0", port=7860, reload=False)
+
+if __name__ == "__main__":
+    main()
