@@ -1,0 +1,145 @@
+name: dataclean-openenv
+version: "1.0.0"
+description: >
+  Real-world data cleaning environment for AI agents.
+  Simulates the daily work of data engineers and analysts who must fix
+  messy datasets containing missing values, wrong data types, duplicate rows,
+  outliers, and inconsistent string formatting.
+  Three progressive tasks (easy → medium → hard) with deterministic graders.
+
+tags:
+  - openenv
+  - data-cleaning
+  - real-world
+  - tabular-data
+  - data-engineering
+
+author: dataclean-team
+license: MIT
+
+environment:
+  type: openenv
+  api_version: "1.0"
+  runtime: python3.10
+
+tasks:
+  - id: task1
+    name: "Fill Missing Values"
+    difficulty: easy
+    description: >
+      Fix missing values in an HR employee dataset.
+      Columns salary, department, and tenure_years have nulls.
+      Use appropriate imputation strategies (median for numeric, mode for categorical).
+    max_steps: 15
+    reward_range: [0.0, 1.0]
+    success_threshold: 0.80
+    grader: deterministic
+
+  - id: task2
+    name: "Fix Dtypes and Remove Duplicates"
+    difficulty: medium
+    description: >
+      Fix wrong data types in an e-commerce orders dataset (quantity, unit_price,
+      order_date, customer_id stored as strings), remove 15 duplicate order rows,
+      and fill remaining missing values.
+    max_steps: 25
+    reward_range: [0.0, 1.0]
+    success_threshold: 0.80
+    grader: deterministic
+
+  - id: task3
+    name: "Full Data Cleaning Pipeline"
+    difficulty: hard
+    description: >
+      Complete 6-step pipeline on a healthcare patient records dataset:
+      (1) fix data types, (2) clean string contaminants (mmHg),
+      (3) remove duplicates, (4) fill missing values,
+      (5) remove statistical outliers via IQR,
+      (6) standardize string formats (titlecase, strip, uppercase).
+    max_steps: 35
+    reward_range: [0.0, 1.0]
+    success_threshold: 0.85
+    grader: deterministic
+
+observation_space:
+  type: structured
+  format: json
+  fields:
+    task_id: string
+    task_description: string
+    step_number: integer
+    max_steps: integer
+    dataset_profile:
+      row_count: integer
+      col_count: integer
+      total_nulls: integer
+      total_null_pct: float
+      duplicate_row_count: integer
+      columns:
+        - name: string
+          dtype: string
+          null_count: integer
+          null_pct: float
+          unique_count: integer
+          sample_values: list
+          min: float_or_null
+          max: float_or_null
+          mean: float_or_null
+          has_outliers: bool_or_null
+    action_history: list
+    current_score: float
+    issues_remaining: list[string]
+    schema_requirements: dict_or_null
+    hints: list[string]
+
+action_space:
+  type: structured
+  format: json
+  actions:
+    fill_missing:
+      fields: [column, strategy, value]
+      strategies: [mean, median, mode, constant, ffill, bfill, drop]
+    fix_dtype:
+      fields: [column, target_type, datetime_format]
+      types: [int, float, str, bool, datetime]
+    remove_duplicates:
+      fields: [subset, keep]
+    remove_outliers:
+      fields: [column, method, threshold]
+      methods: [iqr, zscore, clip]
+    standardize_format:
+      fields: [column, format_type]
+      formats: [lowercase, uppercase, titlecase, strip, strip_special]
+    filter_rows:
+      fields: [column, operator, value]
+    rename_column:
+      fields: [old_name, new_name]
+    validate_schema:
+      fields: [expected_columns, expected_dtypes]
+    submit:
+      fields: [message]
+
+reward:
+  type: shaped
+  range: [0.0, 1.0]
+  components:
+    null_score: Percentage of missing values correctly handled
+    dtype_score: Fraction of columns with correct data types
+    duplicate_score: Absence of duplicate rows
+    outlier_score: Statistical outlier removal quality
+    format_score: String format consistency
+    schema_score: Required columns and types present
+    efficiency_penalty: Penalty for excessive wasted actions
+
+endpoints:
+  reset: POST /reset
+  step: POST /step
+  state: GET /state
+  tasks: GET /tasks
+  health: GET /health
+  validate: POST /validate
+
+deployment:
+  platform: huggingface-spaces
+  sdk: docker
+  port: 7860
