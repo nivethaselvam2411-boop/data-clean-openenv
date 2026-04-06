@@ -103,14 +103,13 @@ def list_tasks():
         })
     return {"tasks": tasks}
 
-
 @app.post("/reset", tags=["openenv"])
-def reset(req: ResetRequest):
-    """
-    Reset the environment for a given task and return the initial observation.
-    OpenEnv spec: POST /reset
-    """
+def reset(req: Optional[ResetRequest] = None): # Make it optional
     try:
+        # Use defaults if no body is provided
+        if req is None:
+            req = ResetRequest()
+
         key = f"{req.session_id}:{req.task_id}"
         _sessions[key] = DataCleanEnvironment(task_id=req.task_id, seed=req.seed)
         obs = _sessions[key].reset()
@@ -118,14 +117,17 @@ def reset(req: ResetRequest):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-
 @app.post("/step", tags=["openenv"])
-def step(req: StepRequest):
+def step(req: Optional[StepRequest] = None):
     """
     Apply an action and return observation, reward, done, info.
     OpenEnv spec: POST /step
     """
     try:
+        if req is None:
+            # You can't take a step without an action, 
+            # but we'll return a cleaner error if it's missing
+            raise HTTPException(status_code=400, detail="Action required")
         env = _get_or_create_env(req.session_id, req.task_id, req.seed)
         obs, reward, done, info = env.step(req.action)
         return {
@@ -138,6 +140,7 @@ def step(req: StepRequest):
         raise HTTPException(status_code=409, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"{type(e).__name__}: {str(e)}")
+
 
 
 @app.get("/state", tags=["openenv"])
