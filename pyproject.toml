@@ -14,5 +14,9 @@ dependencies = [
     "pandas",
     "numpy",
     "pydantic",
-    "python-multipart"
+    "python-multipart",
+    "openenv>=0.2.0"
 ]
+
+[project.scripts]
+server = "app:app"
