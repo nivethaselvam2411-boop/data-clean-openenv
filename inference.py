@@ -1,6 +1,6 @@
 """
 inference.py — DataClean OpenEnv Baseline Agent
-Fixed ONLY for Phase 2 initialization and strict log tags.
+Fixed for Submission #10: Strict API Proxy Compliance.
 """
 
 from __future__ import annotations
@@ -15,22 +15,23 @@ import requests
 from openai import OpenAI
 
 # ---------------------------------------------------------------------------
-# Config from environment variables
+# Config from environment variables - UPDATED FOR PROXY COMPLIANCE
 # ---------------------------------------------------------------------------
 
+# The validator explicitly requires these two variables for their proxy
 API_BASE_URL = os.environ.get("API_BASE_URL", "https://api.openai.com/v1")
 MODEL_NAME = os.environ.get("MODEL_NAME", "gpt-4o-mini")
-# FIX: Default to dummy_key to prevent OpenAI library validation crash
-HF_TOKEN = os.environ.get("HF_TOKEN", "dummy_key")
-ENV_URL = os.environ.get("ENV_URL", "http://localhost:7860")
 
-if not os.environ.get("HF_TOKEN"):
-    print("[WARN] HF_TOKEN not set — using dummy key", flush=True)
+# The validator injects 'API_KEY'. We use 'HF_TOKEN' only as a backup.
+# We REMOVED the "dummy" fallback to ensure it connects to their proxy correctly.
+API_KEY = os.environ.get("API_KEY") or os.environ.get("HF_TOKEN")
 
-# FIX: Wrap in try/except to prevent Phase 2 "Unhandled Exception" failure
+ENV_URL = os.environ.get("ENV_URL", "http://localhost:7860").rstrip("/")
+
+# Initialize exactly as requested by the validator instructions
 try:
     client = OpenAI(
-        api_key=HF_TOKEN if HF_TOKEN else "dummy_key",
+        api_key=API_KEY,
         base_url=API_BASE_URL,
     )
 except Exception as e:
@@ -45,18 +46,15 @@ SESSION_ID = f"inference_{int(time.time())}"
 # ---------------------------------------------------------------------------
 
 def log_start(task_id: str, model: str):
-    # Changed from JSON to strict Tag format
     print(f"[START] Task: {task_id} | Model: {model}", flush=True)
 
 
 def log_step(task_id: str, step: int, action: Dict, reward: float, done: bool, info: Dict):
-    # Changed from JSON to strict Tag format
     action_type = action.get("action_type", "unknown")
     print(f"[STEP] {step}: {action_type} | Reward: {reward:.4f} | Done: {done}", flush=True)
 
 
 def log_end(task_id: str, final_reward: float, total_steps: int, success: bool):
-    # Changed from JSON to strict Tag format
     print(f"[END] Task: {task_id} | Final Reward: {final_reward:.4f} | Steps: {total_steps} | Success: {success}", flush=True)
 
 
@@ -273,7 +271,6 @@ def main():
     print(f"Model: {MODEL_NAME} | API: {API_BASE_URL} | Env: {ENV_URL}", flush=True)
     print(f"{'='*60}", flush=True)
 
-    # FIX: Increased attempts and added more robust health check
     for attempt in range(15):
         try:
             r = requests.get(f"{ENV_URL}/health", timeout=2)
