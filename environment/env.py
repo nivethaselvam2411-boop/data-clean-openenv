@@ -124,7 +124,7 @@ class DataCleanEnvironment:
     # -----------------------------------------------------------------------
     # OpenEnv Core API
     # -----------------------------------------------------------------------
-   def reset(self) -> Observation:
+    def reset(self) -> Observation:
         """Reset environment to initial state, return first observation."""
         dirty, _ = self._config["generator"](seed=self.seed)
         self._df = dirty.copy()
@@ -133,7 +133,8 @@ class DataCleanEnvironment:
         self._done = False
         self._action_history = []
         self._current_reward = 0.0
-        print(f"START: Task {self.task_id} initialized with seed {self.seed}")
+        # FIXED: Structured log format
+        print(f"[START] Task {self.task_id} initialized with seed {self.seed}", flush=True)
         return self._build_observation()
 
     def step(self, action: Action | Dict[str, Any]) -> Tuple[Observation, float, bool, Dict]:
@@ -142,22 +143,19 @@ class DataCleanEnvironment:
         Implements full OpenEnv step() contract.
         """
         if self._done:
-            # Return final state gracefully instead of raising
             obs = self._build_observation()
             return obs, self._current_reward, True, {"reason": "already_done"}
 
-        # Accept dict or model
         if isinstance(action, dict):
-            action_type = action.get("action_type", "unknown") # Get name for printing
+            action_type = action.get("action_type", "unknown")
             action = self._parse_action(action)
         else:
             action_type = action.action_type
 
         self._step_num += 1
         
-        # --- ADDED FOR CHECKLIST #5 ---
-        print(f"STEP {self._step_num}: Executing {action_type}")
-        # ------------------------------
+        # FIXED: Structured log format [STEP]
+        print(f"[STEP] {self._step_num}: Executing {action_type}", flush=True)
 
         action_result = {"step": self._step_num, "action": action.model_dump(), "success": False, "message": ""}
 
@@ -166,10 +164,8 @@ class DataCleanEnvironment:
                 action_result["success"] = True
                 action_result["message"] = "Episode submitted for grading."
                 self._done = True
-                
-                # --- ADDED FOR CHECKLIST #5 ---
-                print(f"END: Task {self.task_id} completed at step {self._step_num}")
-                # ------------------------------
+                # FIXED: Structured log format [END]
+                print(f"[END] Task {self.task_id} completed at step {self._step_num}", flush=True)
             else:
                 self._apply_action(action, action_result)
         except Exception as e:
@@ -178,7 +174,6 @@ class DataCleanEnvironment:
 
         self._action_history.append(action_result)
 
-        # Grade current state
         reward_obj: Reward = self._config["grader"](
             df=self._df,
             original_df=self._original_df,
@@ -187,13 +182,10 @@ class DataCleanEnvironment:
         )
         self._current_reward = reward_obj.total
 
-        # Force done if max steps reached
         if self._step_num >= self._max_steps:
             self._done = True
-            
-            # --- ADDED FOR CHECKLIST #5 ---
-            print(f"END: Task {self.task_id} reached max steps ({self._max_steps})")
-            # ------------------------------
+            # FIXED: Structured log format [END]
+            print(f"[END] Task {self.task_id} reached max steps ({self._max_steps})", flush=True)
             
             reward_obj = Reward(
                 total=reward_obj.total,
@@ -203,14 +195,12 @@ class DataCleanEnvironment:
             )
         elif reward_obj.done:
             self._done = True
-            # --- ADDED FOR CHECKLIST #5 ---
-            print(f"END: Task {self.task_id} succeeded early")
-            # ------------------------------
+            # FIXED: Structured log format [END]
+            print(f"[END] Task {self.task_id} succeeded early", flush=True)
 
         obs = self._build_observation()
         return obs, reward_obj.total, self._done, reward_obj.info
 
-  
     def state(self) -> Dict[str, Any]:
         """Return full current state (for checkpointing/inspection)."""
         return {
@@ -230,11 +220,10 @@ class DataCleanEnvironment:
         }
 
     # -----------------------------------------------------------------------
-    # Action Execution
+    # Action Execution (LOGIC UNTOUCHED)
     # -----------------------------------------------------------------------
 
     def _apply_action(self, action: Action, result: Dict):
-        """Dispatch and apply typed action to self._df."""
         df = self._df
 
         if isinstance(action, FillMissingAction):
@@ -272,7 +261,6 @@ class DataCleanEnvironment:
                 df[col] = pd.to_numeric(df[col], errors="coerce")
                 df[col] = df[col].fillna(df[col].median())
             elif action.target_type == "float":
-                # Strip common currency/unit symbols
                 if df[col].dtype == object:
                     df[col] = df[col].astype(str).str.replace(r"[\$,£€\s]", "", regex=True)
                 df[col] = pd.to_numeric(df[col], errors="coerce")
@@ -330,7 +318,7 @@ class DataCleanEnvironment:
             self._df = df
             result["success"] = True
             result["message"] = f"Outlier removal on '{col}': {before - after} rows removed (method={action.method})"
-            return  # _df already updated above
+            return
 
         elif isinstance(action, RenameColumnAction):
             if action.old_name not in df.columns:
@@ -355,7 +343,6 @@ class DataCleanEnvironment:
             elif action.format_type == "strip_special":
                 df[col] = series.str.replace(r"[^\w\s\.\-\+]", "", regex=True).str.strip()
 
-            # Restore NaN where original was null
             orig_nulls = self._df[col].isna()
             df.loc[orig_nulls, col] = np.nan
             result["success"] = True
@@ -366,7 +353,6 @@ class DataCleanEnvironment:
             self._assert_column_exists(col)
             before = len(df)
             val = action.value
-
             op = action.operator
             if op == "eq":
                 mask = df[col] == val
@@ -419,7 +405,7 @@ class DataCleanEnvironment:
             raise ValueError(f"Column '{col}' not found. Available: {list(self._df.columns)}")
 
     # -----------------------------------------------------------------------
-    # Observation Building
+    # Observation Building (LOGIC UNTOUCHED)
     # -----------------------------------------------------------------------
 
     def _build_observation(self) -> Observation:
@@ -433,7 +419,7 @@ class DataCleanEnvironment:
             step_number=self._step_num,
             max_steps=self._max_steps,
             dataset_profile=profile,
-            action_history=self._action_history[-10:],  # last 10 actions
+            action_history=self._action_history[-10:],
             current_score=self._current_reward,
             issues_remaining=issues,
             schema_requirements=self._config.get("schema_requirements"),
@@ -478,16 +464,13 @@ class DataCleanEnvironment:
     def _detect_issues(self) -> List[str]:
         df = self._df
         issues = []
-
         total_nulls = df.isnull().sum().sum()
         if total_nulls > 0:
             null_cols = df.columns[df.isnull().any()].tolist()
             issues.append(f"Missing values: {total_nulls} nulls across columns {null_cols}")
-
         dups = df.duplicated().sum()
         if dups > 0:
             issues.append(f"Duplicate rows: {dups} duplicate rows detected")
-
         for col in df.columns:
             if df[col].dtype == object:
                 numeric_attempt = pd.to_numeric(
@@ -497,7 +480,6 @@ class DataCleanEnvironment:
                 valid_pct = numeric_attempt.notna().mean()
                 if valid_pct > 0.7 and df[col].dtype == object:
                     issues.append(f"Possible dtype issue: '{col}' looks numeric but stored as string")
-
         for col in df.select_dtypes(include=[np.number]).columns:
             series = df[col].dropna()
             if len(series) > 10:
@@ -506,23 +488,19 @@ class DataCleanEnvironment:
                 outliers = ((series < q1 - 1.5 * iqr) | (series > q3 + 1.5 * iqr)).sum()
                 if outliers > 0:
                     issues.append(f"Outliers: {outliers} outliers in '{col}'")
-
         for col in df.select_dtypes(include=[object]).columns:
             series = df[col].dropna().astype(str)
             if len(series) > 0:
                 has_leading_trailing = (series != series.str.strip()).any()
                 if has_leading_trailing:
                     issues.append(f"Format issue: '{col}' has leading/trailing whitespace")
-
                 unique_cases = series.str.lower().nunique()
                 actual_unique = series.nunique()
                 if actual_unique > unique_cases:
                     issues.append(f"Format issue: '{col}' has inconsistent casing")
-
         return issues
 
     def _parse_action(self, d: Dict[str, Any]) -> Action:
-        """Parse dict into typed Action model."""
         action_type = d.get("action_type", "")
         type_map = {
             "fill_missing": FillMissingAction,
