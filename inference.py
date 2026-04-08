@@ -1,6 +1,6 @@
 """
 inference.py — DataClean OpenEnv Baseline Agent
-Fixed for Submission #10: Strict API Proxy Compliance.
+Fixed for Strict Proxy Compliance (Submission #12).
 """
 
 from __future__ import annotations
@@ -15,28 +15,29 @@ import requests
 from openai import OpenAI
 
 # ---------------------------------------------------------------------------
-# Config from environment variables - UPDATED FOR PROXY COMPLIANCE
+# Config from environment variables - STALKER PROXY COMPLIANCE
 # ---------------------------------------------------------------------------
 
-# The validator explicitly requires these two variables for their proxy
-API_BASE_URL = os.environ.get("API_BASE_URL", "https://api.openai.com/v1")
+# Use literal os.environ access as requested by the validator instructions.
+# This ensures the script correctly uses the injected proxy variables.
+try:
+    API_BASE_URL = os.environ["API_BASE_URL"]
+    # LiteLLM proxy requires 'API_KEY'
+    API_KEY = os.environ["API_KEY"]
+except KeyError:
+    # If API_KEY is missing, try HF_TOKEN but print a warning for the log
+    API_KEY = os.environ.get("API_KEY") or os.environ.get("HF_TOKEN")
+    API_BASE_URL = os.environ.get("API_BASE_URL", "https://api.openai.com/v1")
+    print(f"[WARN] Injected variables missing, using fallback: {API_BASE_URL}", flush=True)
+
 MODEL_NAME = os.environ.get("MODEL_NAME", "gpt-4o-mini")
-
-# The validator injects 'API_KEY'. We use 'HF_TOKEN' only as a backup.
-# We REMOVED the "dummy" fallback to ensure it connects to their proxy correctly.
-API_KEY = os.environ.get("API_KEY") or os.environ.get("HF_TOKEN")
-
 ENV_URL = os.environ.get("ENV_URL", "http://localhost:7860").rstrip("/")
 
-# Initialize exactly as requested by the validator instructions
-try:
-    client = OpenAI(
-        api_key=API_KEY,
-        base_url=API_BASE_URL,
-    )
-except Exception as e:
-    print(f"[ERROR] OpenAI init failed: {e}", flush=True)
-    client = None
+# Initialize exactly as instructed: base_url=os.environ["API_BASE_URL"]
+client = OpenAI(
+    api_key=API_KEY,
+    base_url=API_BASE_URL,
+)
 
 TASKS = ["task1", "task2", "task3"]
 SESSION_ID = f"inference_{int(time.time())}"
@@ -268,6 +269,7 @@ def run_task(task_id: str) -> Dict:
 
 def main():
     print(f"DataClean OpenEnv Inference Script", flush=True)
+    # Important: Do not log the actual API_KEY
     print(f"Model: {MODEL_NAME} | API: {API_BASE_URL} | Env: {ENV_URL}", flush=True)
     print(f"{'='*60}", flush=True)
 
