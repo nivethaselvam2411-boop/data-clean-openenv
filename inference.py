@@ -1,6 +1,6 @@
 """
 inference.py — DataClean OpenEnv Baseline Agent
-
+Fixed ONLY for Phase 2 initialization and strict log tags.
 """
 
 from __future__ import annotations
@@ -91,25 +91,36 @@ def env_step(task_id: str, action: Dict) -> Dict:
 
 SYSTEM_PROMPT = """You are an expert data cleaning agent. You will be given a dataset profile
 and must clean it step by step using specific actions.
+
 Available actions (always return valid JSON with action_type):
+
 1. fill_missing: Fill null values
    {"action_type": "fill_missing", "column": "col_name", "strategy": "mean|median|mode|constant|ffill|bfill|drop", "value": null}
+
 2. fix_dtype: Fix data types
    {"action_type": "fix_dtype", "column": "col_name", "target_type": "int|float|str|bool|datetime", "datetime_format": null}
+
 3. remove_duplicates: Remove duplicate rows
    {"action_type": "remove_duplicates", "subset": ["col1", "col2"], "keep": "first|last|none"}
+
 4. remove_outliers: Remove outliers
    {"action_type": "remove_outliers", "column": "col_name", "method": "iqr|zscore|clip", "threshold": 1.5}
+
 5. standardize_format: Fix string formatting
    {"action_type": "standardize_format", "column": "col_name", "format_type": "lowercase|uppercase|titlecase|strip|strip_special"}
+
 6. filter_rows: Filter rows by condition
    {"action_type": "filter_rows", "column": "col_name", "operator": "eq|ne|gt|lt|gte|lte|isin|notin|contains", "value": "val"}
+
 7. rename_column: Rename a column
    {"action_type": "rename_column", "old_name": "old", "new_name": "new"}
+
 8. validate_schema: Validate schema
    {"action_type": "validate_schema", "expected_columns": ["col1"], "expected_dtypes": {"col1": "int"}}
+
 9. submit: Submit final cleaned dataset
    {"action_type": "submit", "message": "Done cleaning"}
+
 RULES:
 - Always return ONLY a JSON object with action_type and required fields
 - Be systematic: fix dtypes first, then remove duplicates, then fill missing, then handle outliers
@@ -144,21 +155,28 @@ def build_user_prompt(obs: Dict) -> str:
     ) or "  (none yet)"
 
     return f"""TASK: {obs.get('task_description', '')}
+
 CURRENT STATE:
   Step: {step}/{max_steps}
   Current Score: {score:.3f}
   Rows: {profile.get('row_count', '?')} | Cols: {profile.get('col_count', '?')}
   Total Nulls: {profile.get('total_nulls', '?')} ({profile.get('total_null_pct', 0)*100:.1f}%)
   Duplicate Rows: {profile.get('duplicate_row_count', '?')}
+
 COLUMNS:
 {chr(10).join(cols_summary)}
+
 ISSUES REMAINING:
 {chr(10).join(f'  • {issue}' for issue in issues) or '  ✓ No issues detected!'}
+
 RECENT ACTIONS:
 {history_str}
+
 HINTS:
 {chr(10).join(f'  → {h}' for h in hints)}
+
 SCHEMA REQUIREMENTS: {json.dumps(obs.get('schema_requirements', {}), indent=2)}
+
 Return your next action as a single JSON object. If all issues are resolved, submit.
 """
 
